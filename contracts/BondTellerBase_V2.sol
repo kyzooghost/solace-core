@@ -11,17 +11,17 @@ import "./GovernableInitializable.sol";
 import "./ERC721EnhancedInitializable.sol";
 import "./interface/ISOLACE.sol";
 import "./interface/IxSOLACE.sol";
-import "./interface/IBondDepositoryV2.sol";
+import "./interface/IBondDepository_V2.sol";
 import "./interface/IBondTellerErc20_V2.sol";
 
 
 /**
- * @title BondTellerBaseV2
+ * @title BondTellerBase_V2
  * @author solace.fi
  * @notice A base type for bond tellers.
  *
  * The main difference between V1 and V2 SOLACE bonds, is that V1 SOLACE bonds can be redeemed for payout only after the vestingTerm, while V2 SOLACE bonds linearly vest over the vestingTerm.
- * `redeem()` in BondTellerBase.sol has been renamed to `claimPayout()` in BondTellerBaseV2.sol - to reduce confusion
+ * `redeem()` in BondTellerBase.sol has been renamed to `claimPayout()` in BondTellerBase_V2.sol - to reduce confusion
  *
  * Users purchase SOLACE bonds from Bond Tellers, think of them as the merchant stores specialising in SOLACE protocol bonds
  *
@@ -34,7 +34,7 @@ import "./interface/IBondTellerErc20_V2.sol";
  * If `claimPayout` is called anytime after `vestingStart + vestingTerm`, then the `SPT V2` ERC721 is burned and the bond terms are completed.
  * 
  */
-abstract contract BondTellerBaseV2 is IBondTellerV2, ReentrancyGuard, GovernableInitializable, ERC721EnhancedInitializable {
+abstract contract BondTellerBase_V2 is IBondTeller_V2, ReentrancyGuard, GovernableInitializable, ERC721EnhancedInitializable {
     using SafeERC20 for IERC20;
 
     /***************************************
@@ -66,7 +66,7 @@ abstract contract BondTellerBaseV2 is IBondTellerV2, ReentrancyGuard, Governable
     uint256 public numBonds;                   // total number of bonds that have been created
 
     // UNSURE here - is it more gas efficient to store payoutAlreadyClaimed in a struct, or in a mapping
-    struct BondV2 {
+    struct Bond {
         address payoutToken;                   // solace or xsolace
         uint256 payoutAmount;                  // amount of solace or xsolace to be paid in total on the bond
         uint256 payoutAlreadyClaimed;          // amount of solace or xsolace that has already been claimed on the bond
@@ -74,7 +74,7 @@ abstract contract BondTellerBaseV2 is IBondTellerV2, ReentrancyGuard, Governable
         uint256 vestingStart;                  // timestamp at which bond was minted
     }
 
-    mapping (uint256 => BondV2) public bonds;    // mapping of bondID to BondV2 object
+    mapping (uint256 => Bond) public bonds;    // mapping of bondID to Bond object
 
     // addresses
     ISOLACE public solace;                     // solace native token
@@ -82,7 +82,7 @@ abstract contract BondTellerBaseV2 is IBondTellerV2, ReentrancyGuard, Governable
     IERC20 public principal;                   // token to accept as payment
     address public underwritingPool;           // the underwriting pool to back risks
     address public dao;                        // the dao
-    IBondDepositoryV2 public bondDepoV2;       // the bond depository V2
+    IBondDepository_V2 public bondDepo;       // the bond depository
 
     /***************************************
     INITIALIZER
@@ -97,7 +97,7 @@ abstract contract BondTellerBaseV2 is IBondTellerV2, ReentrancyGuard, Governable
      * @param pool_ The underwriting pool.
      * @param dao_ The DAO.
      * @param principal_ address The ERC20 token that users deposit.
-     * @param bondDepoV2_ The bond depository V2.
+     * @param bondDepo_ The bond depository V2.
      */
     function initialize(
         string memory name_,
@@ -107,12 +107,12 @@ abstract contract BondTellerBaseV2 is IBondTellerV2, ReentrancyGuard, Governable
         address pool_,
         address dao_,
         address principal_,
-        address bondDepoV2_
+        address bondDepo_
     ) external override initializer {
         __Governable_init(governance_);
         string memory symbol = "SBT V2";
         __ERC721Enhanced_init(name_, symbol);
-        _setAddresses(solace_, xsolace_, pool_, dao_, principal_, bondDepoV2_);
+        _setAddresses(solace_, xsolace_, pool_, dao_, principal_, bondDepo_);
     }
 
     /***************************************
@@ -203,7 +203,7 @@ abstract contract BondTellerBaseV2 is IBondTellerV2, ReentrancyGuard, Governable
     /**
      * @notice Claim payout for a bond that the user holds.
      * User calling claimPayout() must be either the owner or approved for the entered bondID.
-     * @dev Renamed redeem() in BondTellerBase.sol to claimPayout() in BondTellerBaseV2.sol
+     * @dev Renamed redeem() in BondTellerBase.sol to claimPayout() in BondTellerBase_V2.sol
      * @param bondID The ID of the bond to redeem.
      */
     function claimPayout(uint256 bondID) external override nonReentrant tokenMustExist(bondID) {
@@ -211,7 +211,7 @@ abstract contract BondTellerBaseV2 is IBondTellerV2, ReentrancyGuard, Governable
         require(_isApprovedOrOwner(msg.sender, bondID), "!bonder");
 
         // Payout as per vesting terms
-        BondV2 memory bond = bonds[bondID];
+        Bond memory bond = bonds[bondID];
         uint256 eligiblePayout = _calculateEligiblePayout(bondID);
         bonds[bondID].payoutAlreadyClaimed += eligiblePayout;
         
@@ -266,7 +266,7 @@ abstract contract BondTellerBaseV2 is IBondTellerV2, ReentrancyGuard, Governable
      * @return eligiblePayout Amount of SOLACE or xSOLACE that can be currently claimed for the bond
      */
     function _calculateEligiblePayout(uint256 bondID) internal view returns (uint256 eligiblePayout) {
-        BondV2 memory bond = bonds[bondID];
+        Bond memory bond = bonds[bondID];
 
         // Sanity check
         require(bond.payoutAlreadyClaimed <= bond.payoutAmount, "?? payoutAlreadyClaimed > payoutAmount");
@@ -364,7 +364,7 @@ abstract contract BondTellerBaseV2 is IBondTellerV2, ReentrancyGuard, Governable
      * @param pool_ The underwriting pool.
      * @param dao_ The DAO.
      * @param principal_ address The ERC20 token that users deposit.
-     * @param bondDepoV2_ The bond depository.
+     * @param bondDepo_ The bond depository.
      */
     function setAddresses(
         address solace_,
@@ -372,9 +372,9 @@ abstract contract BondTellerBaseV2 is IBondTellerV2, ReentrancyGuard, Governable
         address pool_,
         address dao_,
         address principal_,
-        address bondDepoV2_
+        address bondDepo_
     ) external override onlyGovernance {
-        _setAddresses(solace_, xsolace_, pool_, dao_, principal_, bondDepoV2_);
+        _setAddresses(solace_, xsolace_, pool_, dao_, principal_, bondDepo_);
     }
 
     /**
@@ -385,7 +385,7 @@ abstract contract BondTellerBaseV2 is IBondTellerV2, ReentrancyGuard, Governable
      * @param pool_ The underwriting pool.
      * @param dao_ The DAO.
      * @param principal_ address The ERC20 token that users deposit.
-     * @param bondDepoV2_ The bond depository.
+     * @param bondDepo_ The bond depository.
      */
     function _setAddresses(
         address solace_,
@@ -393,21 +393,21 @@ abstract contract BondTellerBaseV2 is IBondTellerV2, ReentrancyGuard, Governable
         address pool_,
         address dao_,
         address principal_,
-        address bondDepoV2_
+        address bondDepo_
     ) internal {
         require(solace_ != address(0x0), "zero address solace");
         require(xsolace_ != address(0x0), "zero address xsolace");
         require(pool_ != address(0x0), "zero address pool");
         require(dao_ != address(0x0), "zero address dao");
         require(principal_ != address(0x0), "zero address principal");
-        require(bondDepoV2_ != address(0x0), "zero address bond depo");
+        require(bondDepo_ != address(0x0), "zero address bond depo");
         solace = ISOLACE(solace_);
         xsolace = IxSOLACE(xsolace_);
         solace.approve(xsolace_, type(uint256).max);
         underwritingPool = pool_;
         dao = dao_;
         principal = IERC20(principal_);
-        bondDepoV2 = IBondDepositoryV2(bondDepoV2_);
+        bondDepo = IBondDepository_V2(bondDepo_);
         emit AddressesSet();
     }
 }

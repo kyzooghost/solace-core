@@ -2,21 +2,21 @@
 pragma solidity 0.8.6;
 
 /**
- * @title BondDepositoryV2
+ * @title BondDepository_V2
  * @author solace.fi
  * @dev We need to retire the original BondDepository contract, and deploy a V2, because the original contract is intertwined with the V1 BondTeller contracts
- * @notice Factory and manager of [`Bond Tellers V2`](./BondTellerBaseV2).
+ * @notice Factory and manager of [`Bond Tellers`](./BondTellerBase_V2).
  */
-interface IBondDepositoryV2 {
+interface IBondDepository_V2 {
 
     /***************************************
     EVENTS
     ***************************************/
 
     /// @notice Emitted when a teller is added.
-    event TellerV2Added(address indexed teller);
+    event TellerAdded(address indexed teller);
     /// @notice Emitted when a teller is removed.
-    event TellerV2Removed(address indexed teller);
+    event TellerRemoved(address indexed teller);
     /// @notice Emitted when the params are set.
     event ParamsSet(address solace, address xsolace, address pool, address dao);
 
@@ -37,22 +37,22 @@ interface IBondDepositoryV2 {
     function dao() external view returns (address dao_);
 
     /// @notice Returns true if the address is a teller.
-    function isTellerV2(address teller) external view returns (bool isTellerV2_);
+    function isTeller(address teller) external view returns (bool isTeller_);
 
     /***************************************
-    TELLER V2 MANAGEMENT FUNCTIONS
+    TELLER MANAGEMENT FUNCTIONS
     ***************************************/
 
     /**
-     * @notice Creates a new [`BondTeller V2`](./IBondTellerV2).
+     * @notice Creates a new [`BondTeller`](./IBondTeller_V2).
      * Can only be called by the current [**governor**](/docs/protocol/governance).
      * @param name The name of the bond token.
      * @param governance The address of the teller's [governor](/docs/protocol/governance).
-     * @param impl The address of BondTellerV2 implementation.
+     * @param impl The address of BondTeller_V2 implementation.
      * @param principal address The ERC20 token that users give.
      * @return teller The address of the new teller.
      */
-    function createBondTellerV2(
+    function createBondTeller(
         string memory name,
         address governance,
         address impl,
@@ -60,16 +60,16 @@ interface IBondDepositoryV2 {
     ) external returns (address teller);
 
     /**
-     * @notice Creates a new [`BondTellerV2`](./IBondTellerV2).
+     * @notice Creates a new [`BondTeller`](./IBondTeller_V2).
      * @param name The name of the bond token.
      * Can only be called by the current [**governor**](/docs/protocol/governance).
      * @param governance The address of the teller's [governor](/docs/protocol/governance).
-     * @param impl The address of BondTellerV2 implementation.
+     * @param impl The address of BondTeller_V2 implementation.
      * @param salt The salt for CREATE2.
      * @param principal address The ERC20 token that users give.
      * @return teller The address of the new teller.
      */
-    function create2BondTellerV2(
+    function create2BondTeller(
         string memory name,
         address governance,
         address impl,
@@ -82,14 +82,14 @@ interface IBondDepositoryV2 {
      * Can only be called by the current [**governor**](/docs/protocol/governance).
      * @param teller The teller to add.
      */
-    function addTellerV2(address teller) external;
+    function addTeller(address teller) external;
 
     /**
      * @notice Adds a teller.
      * Can only be called by the current [**governor**](/docs/protocol/governance).
      * @param teller The teller to remove.
      */
-    function removeTellerV2(address teller) external;
+    function removeTeller(address teller) external;
 
     /**
      * @notice Sets the parameters to pass to new tellers.

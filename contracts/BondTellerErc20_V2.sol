@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.6;
 
-import "./BondTellerBaseV2.sol";
+import "./BondTellerBase_V2.sol";
 import "./interface/IBondTellerErc20_V2.sol";
 
 /**
@@ -10,7 +10,7 @@ import "./interface/IBondTellerErc20_V2.sol";
  * @notice A bond teller that accepts an ERC20 as payment.
  *
  * The main difference between V1 and V2 SOLACE bonds, is that V1 SOLACE bonds can be redeemed for payout only after the vestingTerm, while V2 SOLACE bonds linearly vest over the vestingTerm.
- * `redeem()` in BondTellerBase.sol has been renamed to `claimPayout()` in BondTellerBaseV2.sol - to reduce confusion
+ * `redeem()` in BondTellerBase.sol has been renamed to `claimPayout()` in BondTellerBase_V2.sol - to reduce confusion
  *
  * Users purchase SOLACE bonds from Bond Tellers, think of them as the merchant stores specialising in SOLACE protocol bonds
  *
@@ -22,9 +22,9 @@ import "./interface/IBondTellerErc20_V2.sol";
  * Purchasers can `claimPayout` anytime after the `startTime`.
  * If `claimPayout` is called anytime after `vestingStart + vestingTerm`, then the `SPT V2` ERC721 is burned and the bond terms are completed.
  * 
- * Most of the implementation details are in [`BondTellerBaseV2`](./BondTellerBaseV2).
+ * Most of the implementation details are in [`BondTellerBase`](./BondTellerBase_V2).
  */
-contract BondTellerErc20_V2 is BondTellerBaseV2, IBondTellerErc20_V2 {
+contract BondTellerErc20_V2 is BondTellerBase_V2, IBondTellerErc20_V2 {
 
     /***************************************
     BONDER FUNCTIONS
@@ -147,7 +147,7 @@ contract BondTellerErc20_V2 is BondTellerBaseV2, IBondTellerErc20_V2 {
         bondID = ++numBonds;
         uint256 vestingStart = block.timestamp;
 
-        bonds[bondID] = BondV2({
+        bonds[bondID] = Bond({
             payoutToken: payoutToken,
             payoutAmount: payout,
             payoutAlreadyClaimed: 0,

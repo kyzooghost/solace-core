@@ -4,17 +4,17 @@ pragma solidity 0.8.6;
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./Factory.sol";
 import "./Governable.sol";
-import "./interface/IBondTellerV2.sol";
-import "./interface/IBondDepositoryV2.sol";
+import "./interface/IBondTeller_V2.sol";
+import "./interface/IBondDepository_V2.sol";
 
 /**
- * @title BondDepositoryV2
+ * @title BondDepository_V2
  * @author solace.fi
  * @dev We need to retire the original BondDepository contract, and deploy a V2, because the original contract is intertwined with the V1 BondTeller contracts
  * @dev Appended V2 to many `Bond...` variable and object names to minimise probability of pointing to a smart contract from the BondV1 system
- * @notice Factory and manager of [`Bond Tellers V2`](./BondTellerBaseV2).
+ * @notice Factory and manager of [`Bond Tellers V2`](./BondTellerBase_V2).
  */
-contract BondDepositoryV2 is IBondDepositoryV2, Factory, Governable {
+contract BondDepository_V2 is IBondDepository_V2, Factory, Governable {
 
     // pass these when initializing tellers
     address internal _solace;
@@ -23,10 +23,10 @@ contract BondDepositoryV2 is IBondDepositoryV2, Factory, Governable {
     address internal _dao;
 
     // track tellers
-    mapping(address => bool) internal _isTellerV2;
+    mapping(address => bool) internal _isTeller;
 
     /**
-     * @notice Constructs the BondDepositoryV2 contract.
+     * @notice Constructs the BondDepository_V2 contract.
      * @param governance_ The address of the [governor](/docs/protocol/governance).
      * @param solace_ Address of [**SOLACE**](./solace).
      * @param xsolace_ Address of [**xSOLACE**](./xsolace).
@@ -62,47 +62,47 @@ contract BondDepositoryV2 is IBondDepositoryV2, Factory, Governable {
     }
 
     /// @notice Returns true if the address is a teller.
-    function isTellerV2(address teller) external view override returns (bool isTellerV2_) {
-        return _isTellerV2[teller];
+    function isTeller(address teller) external view override returns (bool isTeller_) {
+        return _isTeller[teller];
     }
 
     /***************************************
-    TELLER V2 MANAGEMENT FUNCTIONS
+    TELLER MANAGEMENT FUNCTIONS
     ***************************************/
 
     /**
-     * @notice Creates a new [`BondTellerV2`](./BondTellerBaseV2).
+     * @notice Creates a new [`BondTeller`](./BondTellerBase_V2).
      * Can only be called by the current [**governor**](/docs/protocol/governance).
      * @param name The name of the bond token.
      * @param governance The address of the teller's [governor](/docs/protocol/governance).
-     * @param impl The address of BondTellerV2 implementation.
+     * @param impl The address of BondTeller_V2 implementation.
      * @param principal address The ERC20 token that users give.
      * @return teller The address of the new teller.
      */
-    function createBondTellerV2(
+    function createBondTeller(
         string memory name,
         address governance,
         address impl,
         address principal
     ) external override onlyGovernance returns (address teller) {
         teller = _deployMinimalProxy(impl);
-        IBondTellerV2(teller).initialize(name, governance, _solace, _xsolace, _pool, _dao, principal, address(this));
-        _isTellerV2[teller] = true;
-        emit TellerV2Added(teller);
+        IBondTeller_V2(teller).initialize(name, governance, _solace, _xsolace, _pool, _dao, principal, address(this));
+        _isTeller[teller] = true;
+        emit TellerAdded(teller);
         return teller;
     }
 
     /**
-     * @notice Creates a new [`BondTellerV2`](./BondTellerBaseV2).
+     * @notice Creates a new [`BondTeller`](./BondTellerBase_V2).
      * Can only be called by the current [**governor**](/docs/protocol/governance).
      * @param name The name of the bond token.
      * @param governance The address of the teller's [governor](/docs/protocol/governance).
-     * @param impl The address of BondTellerV2 implementation.
+     * @param impl The address of BondTeller_V2 implementation.
      * @param salt The salt for CREATE2.
      * @param principal address The ERC20 token that users give.
      * @return teller The address of the new teller.
      */
-    function create2BondTellerV2(
+    function create2BondTeller(
         string memory name,
         address governance,
         address impl,
@@ -110,9 +110,9 @@ contract BondDepositoryV2 is IBondDepositoryV2, Factory, Governable {
         address principal
     ) external override onlyGovernance returns (address teller) {
         teller = _deployMinimalProxy(impl, salt);
-        IBondTellerV2(teller).initialize(name, governance, _solace, _xsolace, _pool, _dao, principal, address(this));
-        _isTellerV2[teller] = true;
-        emit TellerV2Added(teller);
+        IBondTeller_V2(teller).initialize(name, governance, _solace, _xsolace, _pool, _dao, principal, address(this));
+        _isTeller[teller] = true;
+        emit TellerAdded(teller);
         return teller;
     }
 
@@ -121,9 +121,9 @@ contract BondDepositoryV2 is IBondDepositoryV2, Factory, Governable {
      * Can only be called by the current [**governor**](/docs/protocol/governance).
      * @param teller The teller to add.
      */
-    function addTellerV2(address teller) external override onlyGovernance {
-        _isTellerV2[teller] = true;
-        emit TellerV2Added(teller);
+    function addTeller(address teller) external override onlyGovernance {
+        _isTeller[teller] = true;
+        emit TellerAdded(teller);
     }
 
     /**
@@ -131,9 +131,9 @@ contract BondDepositoryV2 is IBondDepositoryV2, Factory, Governable {
      * Can only be called by the current [**governor**](/docs/protocol/governance).
      * @param teller The teller to remove.
      */
-    function removeTellerV2(address teller) external override onlyGovernance {
-        _isTellerV2[teller] = false;
-        emit TellerV2Removed(teller);
+    function removeTeller(address teller) external override onlyGovernance {
+        _isTeller[teller] = false;
+        emit TellerRemoved(teller);
     }
 
     /**
@@ -179,7 +179,7 @@ contract BondDepositoryV2 is IBondDepositoryV2, Factory, Governable {
     function pullSolace(uint256 amount) external override {
         // this contract must hold solace
         // can only be called by authorized minters
-        require(_isTellerV2[msg.sender], "!teller");
+        require(_isTeller[msg.sender], "!teller");
         // transfer
         SafeERC20.safeTransfer(IERC20(_solace), msg.sender, amount);
     }

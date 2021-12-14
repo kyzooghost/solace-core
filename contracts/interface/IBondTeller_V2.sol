@@ -5,12 +5,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 
 /**
- * @title IBondTellerV2
+ * @title IBondTeller_V2
  * @author solace.fi
  * @notice Base type of Bond Tellers.
  *
  * The main difference between V1 and V2 SOLACE bonds, is that V1 SOLACE bonds can be redeemed for payout only after the vestingTerm, while V2 SOLACE bonds linearly vest over the vestingTerm.
- * `redeem()` in BondTellerBase.sol has been renamed to `claimPayout()` in BondTellerBaseV2.sol - to reduce confusion
+ * `redeem()` in BondTellerBase.sol has been renamed to `claimPayout()` in BondTellerBase_V2.sol - to reduce confusion
  *
  * Users purchase SOLACE bonds from Bond Tellers, think of them as the merchant stores specialising in SOLACE protocol bonds
  *
@@ -23,7 +23,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * If `claimPayout` is called anytime after `vestingStart + vestingTerm`, then the `SPT V2` ERC721 is burned and the bond terms are completed.
  * 
  */
-interface IBondTeller {
+interface IBondTeller_V2 {
 
     /***************************************
     EVENTS
@@ -57,7 +57,7 @@ interface IBondTeller {
      * @param pool_ The underwriting pool.
      * @param dao_ The DAO.
      * @param principal_ address The ERC20 token that users deposit.
-     * @param bondDepoV2_ The bond depository.
+     * @param bondDepo_ The bond depository.
      */
     function initialize(
         string memory name_,
@@ -67,7 +67,7 @@ interface IBondTeller {
         address pool_,
         address dao_,
         address principal_,
-        address bondDepoV2_
+        address bondDepo_
     ) external;
 
     /***************************************
@@ -106,7 +106,7 @@ interface IBondTeller {
     /**
      * @notice Claim payout for a bond that the user holds.
      * User calling claimPayout() must be either the owner or approved for the entered bondID.
-     * @dev Renamed redeem() in BondTellerBase.sol to claimPayout() in BondTellerBaseV2.sol
+     * @dev Renamed redeem() in BondTellerBase.sol to claimPayout() in BondTellerBase_V2.sol
      * @param bondID The ID of the bond to redeem.
      */
     function claimPayout(uint256 bondID) external;
@@ -135,7 +135,7 @@ interface IBondTeller {
      * @param pool_ The underwriting pool.
      * @param dao_ The DAO.
      * @param principal_ address The ERC20 token that users deposit.
-     * @param bondDepoV2_ The bond depository.
+     * @param bondDepo_ The bond depository.
      */
     function setAddresses(
         address solace_,
@@ -143,6 +143,6 @@ interface IBondTeller {
         address pool_,
         address dao_,
         address principal_,
-        address bondDepoV2_
+        address bondDepo_
     ) external;
 }
