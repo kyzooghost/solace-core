@@ -13,7 +13,7 @@ import "./interface/ITokenVesting.sol";
  * @author solace.fi
  * @notice Stores and handles vested [**SOLACE**](./SOLACE) tokens for SOLACE investors.
  *
- * Predetermined agreement with investors for a linear unlock over three years, with a six month cliff.
+ * Predetermined agreement with investors for a linear unlock over three years starting 29 Nov 2021, with a six month cliff.
  * We use a Unix timestamp of 1638209176 for the vestingStart, using the following transaction as our reference - https://etherscan.io/tx/0x71f1de15ee75f414c454aec3612433d0123e44ec5987515fc3566795cd840bc3
  */
 
@@ -29,17 +29,14 @@ import "./interface/ITokenVesting.sol";
     /// @notice timestamp that investor tokens start vesting.
     uint256 immutable public override vestingStart;
 
-    /// @notice timestamp that cliff for investor tokens finishes.
-    uint256 immutable public override cliff;
-
     /// @notice timestamp that investor tokens finish vesting.
     uint256 immutable public override vestingEnd;
- 
-    /// @notice Total tokens for an investor.
+
+    /// @notice Total tokens allocated to an investor.
     mapping(address => uint256) public override totalInvestorTokens;
 
-    /// @notice Redeemed tokens for an investor.
-    mapping(address => uint256) public override redeemedInvestorTokens;
+    /// @notice Claimed token amount for an investor.
+    mapping(address => uint256) public override claimedInvestorTokens;
 
     /**
      * @notice Constructs the `InvestorVesting` contract.
@@ -49,45 +46,58 @@ import "./interface/ITokenVesting.sol";
      */
     constructor(address governance_, address solace_, uint256 vestingStart_) Governable(governance_) {
         require(solace_ != address(0x0), "zero address solace");
-        require(vestingStart_ != 0, "vestingStart cannot be initialized as 0");
+        require(vestingStart_ > 0, "vestingStart must > 0");
         solace = solace_;
         vestingStart = vestingStart_;
-        cliff = vestingStart_ + 15768000; // Cliff is 6-months after vesting start.
         vestingEnd = vestingStart_ + 94608000; // Vesting ends 3-years after vesting start.
     }
+
+    /***************************************
+    VIEW FUNCTIONS
+    ***************************************/
+
+    /**
+     * @notice Get vesting duration in seconds
+     */
+    function duration() public view override returns (uint256) {
+        return vestingEnd - vestingStart;
+    }
+
 
     /***************************************
     INVESTOR FUNCTIONS
     ***************************************/
 
     /**
-     * @notice Function for investor to claim SOLACE tokens - will claim all redeemable tokens.
+     * @notice Function for investor to claim SOLACE tokens - transfers all claimable tokens from contract to msg.sender.
      */
-    function claimTokens () external override nonReentrant {
-        require(totalInvestorTokens[msg.sender] != 0, "You have no tokens to claim");
-        uint256 redeemableUnlockedTokens = getRedeemableUnlockedTokens(msg.sender);
-        require(redeemableUnlockedTokens > 0, "You cannot claim any tokens at the moment"); // Placed require statement here so that getRedeemableUnlockedTokens(msg.sender) doesn't have to be computed twice
-        redeemedInvestorTokens[msg.sender] += redeemableUnlockedTokens;
-        SafeERC20.safeTransfer(IERC20(solace), msg.sender, redeemableUnlockedTokens);
+    function claimTokens() external override nonReentrant {
+        require(totalInvestorTokens[msg.sender] > 0, "no tokens allocated");
+        uint256 claimableTokens = getClaimableTokens(msg.sender);
+        require(claimableTokens > 0, "no claimable tokens");
+        claimedInvestorTokens[msg.sender] += claimableTokens;
+        SafeERC20.safeTransfer(IERC20(solace), msg.sender, claimableTokens);
+        emit TokensClaimed(solace, msg.sender, claimableTokens);
     }
 
     /**
      * @notice Calculates the amount of unlocked SOLACE tokens an investor can claim.
      * @param investor Investor address.
-     * @return redeemableUnlockedAmount The amount of unlocked tokens an investor can claim from the smart contract.
+     * @return claimableAmount The amount of unlocked tokens an investor can claim from the smart contract.
      */
-    function getRedeemableUnlockedTokens(address investor) public view override returns (uint256 redeemableUnlockedAmount) {
+    function getClaimableTokens(address investor) public view override returns (uint256 claimableAmount) {
         uint256 timestamp = block.timestamp;
-        uint256 redeemableUnlockedAmount;
-        if(timestamp <= cliff) {
+        if(timestamp <= vestingStart) {
             return 0;
-        } else if(timestamp <= vestingEnd) {
-            uint256 totalUnlockedAmount = ( totalInvestorTokens[investor] * (timestamp - cliff) / (vestingEnd - cliff) );
-            redeemableUnlockedAmount = totalUnlockedAmount - redeemedInvestorTokens[investor];
-            return redeemableUnlockedAmount;
+        // Within vesting period
+        } else if(timestamp > vestingStart && timestamp <= vestingEnd) {
+            uint256 totalUnlockedAmount = ( totalInvestorTokens[investor] * (timestamp - vestingStart) / (vestingEnd - vestingStart) );
+            claimableAmount = totalUnlockedAmount - claimedInvestorTokens[investor];
+            return claimableAmount;
+        // After vesting period
         } else {
-            redeemableUnlockedAmount = totalInvestorTokens[investor] - redeemedInvestorTokens[investor];
-            return redeemableUnlockedAmount;
+            claimableAmount = totalInvestorTokens[investor] - claimedInvestorTokens[investor];
+            return claimableAmount;
         }
     }
 
@@ -105,6 +115,7 @@ import "./interface/ITokenVesting.sol";
     function rescueSOLACEtokens(uint256 amount, address recipient) external override onlyGovernance {
         require(recipient != address(0x0), "zero address recipient");
         SafeERC20.safeTransfer(IERC20(solace), recipient, amount);
+        emit TokensRescued(solace, recipient, amount);
     }
 
     /**
@@ -118,23 +129,27 @@ import "./interface/ITokenVesting.sol";
         require(investors.length == totalTokenAmounts.length, "length mismatch");
         for(uint256 i = 0; i < investors.length; i++) {
             totalInvestorTokens[investors[i]] = totalTokenAmounts[i];
+            emit TotalInvestorTokensSet(investors[i], totalTokenAmounts[i]);
         }
     }
 
     /**
      * @notice Changes address for an investor.
+     * @dev Transfers vesting history to another address
      * Can only be called by the current [**governor**](/docs/protocol/governance).
      * @param oldAddress Old investor address.
      * @param newAddress New investor address.
      */
     function setNewInvestorAddress(address oldAddress, address newAddress) external override onlyGovernance {
-        // Require these guards to avoid overwriting pre-existing key-value pairs in the totalInvestorTokens and redeemedInvestorTokens mappings
+        // Require these guards to avoid overwriting pre-existing key-value pairs in the totalInvestorTokens and claimedInvestorTokens mappings
         require(totalInvestorTokens[newAddress] == 0, "Cannot set to a pre-existing address");
-        require(redeemedInvestorTokens[newAddress] == 0, "Cannot set to a pre-existing address");
+        require(claimedInvestorTokens[newAddress] == 0, "Cannot set to a pre-existing address");
         totalInvestorTokens[newAddress] = totalInvestorTokens[oldAddress];
-        redeemedInvestorTokens[newAddress] = redeemedInvestorTokens[oldAddress];
+        claimedInvestorTokens[newAddress] = claimedInvestorTokens[oldAddress];
         totalInvestorTokens[oldAddress] = 0;
-        redeemedInvestorTokens[oldAddress] = 0;
+        claimedInvestorTokens[oldAddress] = 0; // Transfer vesting history to another address
         emit InvestorAddressChanged(oldAddress, newAddress);
+        emit TotalInvestorTokensSet(oldAddress, 0);
+        emit TotalInvestorTokensSet(newAddress, totalInvestorTokens[newAddress]);
     }
  }

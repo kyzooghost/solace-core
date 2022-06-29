@@ -7,7 +7,7 @@ pragma solidity 0.8.6;
  * @author solace.fi
  * @notice Stores and handles vested [**SOLACE**](./SOLACE) tokens for SOLACE investors
  *
- * Predetermined agreement with investors for a linear unlock over three years, with a six month cliff
+ * Predetermined agreement with investors for a linear unlock over three years starting 29 Nov 2021, with a six month cliff.
  */
 
  interface ITokenVesting {
@@ -22,40 +22,55 @@ pragma solidity 0.8.6;
     /// @notice timestamp that investor tokens start vesting.
     function vestingStart() external view returns (uint256);
 
-    /// @notice timestamp that cliff for investor tokens finishes.
-    function cliff() external view returns (uint256);
-
     /// @notice timestamp that investor tokens finish vesting.
     function vestingEnd() external view returns (uint256);
  
-    /// @notice Total tokens for an investor.
+    /// @notice Total tokens allocated to an investor.
     function totalInvestorTokens(address investor) external view returns (uint256);
 
-    /// @notice Redeemed tokens for an investor.
-    function redeemedInvestorTokens(address investor) external view returns (uint256);
+    /// @notice Claimed token amount for an investor.
+    function claimedInvestorTokens(address investor) external view returns (uint256);
 
     /***************************************
     EVENTS
     ***************************************/
 
+    /// @notice Emitted with successful claimTokens() call
+    event TokensClaimed(address token, address indexed claimer, uint256 claimAmount);
+
+    /// @notice Emitted with successful rescueSOLACEtokens() call
+    event TokensRescued(address token, address indexed rescuer, uint256 rescueAmount);
+
     /// @notice Emitted when investor address is changed
-    event InvestorAddressChanged(address oldAddress, address newAddress);
+    event TotalInvestorTokensSet(address indexed investor, uint256 allocation);
+
+    /// @notice Emitted when investor address is changed
+    event InvestorAddressChanged(address indexed oldAddress, address indexed newAddress);
+
+    /***************************************
+    VIEW FUNCTIONS
+    ***************************************/
+
+    /**
+     * @notice Get vesting duration in seconds
+     */
+    function duration() external view returns (uint256);
 
     /***************************************
     INVESTOR FUNCTIONS
     ***************************************/
 
     /**
-     * @notice Function for investor to claim SOLACE tokens - will claim all redeemable tokens
+     * @notice Function for investor to claim SOLACE tokens - transfers all claimable tokens from contract to msg.sender.
      */
-    function claimTokens () external;
+    function claimTokens() external;
 
     /**
-     * @notice Calculates the amount of unlocked SOLACE tokens an investor can claim
-     * @param investor Investor address
-     * @return redeemableUnlockedAmount The amount of unlocked tokens an investor can claim from the smart contract
+     * @notice Calculates the amount of unlocked SOLACE tokens an investor can claim.
+     * @param investor Investor address.
+     * @return claimableAmount The amount of unlocked tokens an investor can claim from the smart contract.
      */
-    function getRedeemableUnlockedTokens(address investor) external view returns (uint256 redeemableUnlockedAmount);
+    function getClaimableTokens(address investor) external view returns (uint256 claimableAmount);
 
     /***************************************
     GOVERNANCE FUNCTIONS
